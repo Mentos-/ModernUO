@@ -10,11 +10,10 @@ namespace Server.Sharding
 {
     public static class ChildShard
     {
-        private static readonly ILogger logger = LogFactory.GetLogger(typeof(ChildShard));
+        public static string ParentIp = "192.168.1.172";
+        public static int ParentPort = 2583;
 
-        private const int m_AuthIDWindowSize = 128;
-        private static readonly Dictionary<int, AuthIDPersistence> m_AuthIDWindow =
-            new(m_AuthIDWindowSize);
+        private static readonly ILogger logger = LogFactory.GetLogger(typeof(ChildShard));
 
         public static void Initialize()
         {
@@ -25,133 +24,13 @@ namespace Server.Sharding
         {
             if (Core.IsChildShard)
             {
-                return;
-                logger.Information("ChildShard: Pinging parent server {0}:{1} to let them know we exist.", Core.ParentIp, Core.ParentPort);
-
-                string IpAddress = Core.ParentIp;
-                int Port = Core.ParentPort;
-
-                LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
-                PacketsTable.AdjustPacketSizeByVersion(clientVersion);
-
-                PacketHandlers.Load();
-                /*
-                PacketHandlers.ServerListReceivedEvent += ServerListReceived;
-                PacketHandlers.ReceiveServerRelayEvent += ReceiveServerRelay;
-                PacketHandlers.ReceiveCharacterListEvent += CharacterListReceived;
-                PacketHandlers.EnterWorldEvent += EnterWorld;
-                PacketHandlers.UpdatePlayerEvent += UpdatePlayer;
-                PacketHandlers.ReceiveLoginRejectionEvent += ReceiveLoginRejection;
-                */
-                //for (int i = 0; i < NumberOfLoadTestClients; i++)
-                {
-                    NetClient loginClient = new NetClient(true);
-                    loginClient.Name = "" + 0;
-                    loginClient.Group = "";// group;
-                    loginClient.Version = clientVersion;
-                    //loginClient.Connected += NetClient_ConnectedToServer;
-
-                    ConnectNetLoginClientToServer(loginClient, IpAddress, Port);
-                }
-                /*
-                // Create a timer with a one second interval.
-                aTimer = new System.Timers.Timer(1000);
-                aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-                aTimer.Enabled = true;
-
-                while (IsLoadTestActive)
-                {
-                    OnNetworkUpdate();
-                }
-
-                if (string.IsNullOrEmpty(LoadTestFailureMessage) == false)
-                {
-                    Console.WriteLine("Test failed: " + LoadTestFailureMessage);
-                    Console.ReadLine();
-                }
-                */
+                logger.Information("Server is configured as a child shard with parent server at {0}:{1} ", ParentIp, ParentPort);
             }
-        }
-
-
-        public static bool CheckTravel(Mobile caster, Map map, Point3D loc)
-        {
-            return true;
-        }
-
-        public static IPEndPoint GetIpEndpointForLocation(Point3D Location)
-        {
-            IPAddress expected = System.Net.IPAddress.Parse("192.168.1.4");
-            IPEndPoint address = new System.Net.IPEndPoint(expected, 2593);
-            return address;
-        }
-
-        public static void OnPlayerMobileLocationChange(Mobile m, Point3D oldLocation)
-        {
-            Console.WriteLine("PlayerMobile changed location from {0} to {1}", m.Location, oldLocation);
-
-            IPEndPoint childShardEndpoint = GetIpEndpointForLocation(m.Location);
-            ServerInfo info = new ServerInfo("child", 0, TimeZoneInfo.Utc, childShardEndpoint);
-
-            NetState state = m.NetState;
-            state._authId = GenerateAuthID(state);
-            state.SentFirstPacket = false;
-            state.SendPlayServerAck(info, state._authId);
-        }
-        internal struct AuthIDPersistence
-        {
-            public DateTime Age;
-            public readonly ClientVersion Version;
-
-            public AuthIDPersistence(ClientVersion v)
-            {
-                Age = Core.Now;
-                Version = v;
-            }
-        }
-
-        private static int GenerateAuthID(this NetState state)
-        {
-            if (m_AuthIDWindow.Count == m_AuthIDWindowSize)
-            {
-                var oldestID = 0;
-                var oldest = DateTime.MaxValue;
-
-                foreach (var kvp in m_AuthIDWindow)
-                {
-                    if (kvp.Value.Age < oldest)
-                    {
-                        oldestID = kvp.Key;
-                        oldest = kvp.Value.Age;
-                    }
-                }
-
-                m_AuthIDWindow.Remove(oldestID);
-            }
-
-            int authID;
-
-            do
-            {
-                authID = Utility.Random(1, int.MaxValue - 1);
-
-                if (Utility.RandomBool())
-                {
-                    authID |= 1 << 31;
-                }
-            } while (m_AuthIDWindow.ContainsKey(authID));
-
-            m_AuthIDWindow[authID] = new AuthIDPersistence(state.Version);
-
-            return authID;
         }
 
         public static void HandleParentShardGameLoginRequest(NetState state, int authID)
         {
-            logger.Information("Pinging parent server {0}:{1} with child shard login request authID {2}", Core.ParentIp, Core.ParentPort, authID);
-
-            string IpAddress = Core.ParentIp;
-            int Port = Core.ParentPort;
+            logger.Information("ChildShard: Received login request pinging parent server with change server authID {0}", authID);
 
             LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
             PacketsTable.AdjustPacketSizeByVersion(clientVersion);
@@ -165,7 +44,7 @@ namespace Server.Sharding
             loginClient.Version = clientVersion;
             //loginClient.Connected += NetClient_ConnectedToServer;
 
-            ConnectNetLoginClientToServer(loginClient, IpAddress, Port);
+            ConnectNetLoginClientToServer(loginClient, ParentIp, ParentPort);
         }
 
         static async void ConnectNetLoginClientToServer(NetClient loginClient, string ip, int port)

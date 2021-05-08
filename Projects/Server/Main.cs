@@ -108,10 +108,6 @@ namespace Server
         }
 
         public static bool IsChildShard = false;
-        public static string ParentIp = "192.168.1.172";
-        public static int ParentPort = 2583;
-
-        public static List<string> ChildShardIpAddresses = new List<string>{"192.168.1.4"};
 
         public static TimeSpan ProfileTime =>
             TimeSpan.FromTicks(_profileStart > 0 ? _profileTime + (Stopwatch.GetTimestamp() - _profileStart) : _profileTime);
