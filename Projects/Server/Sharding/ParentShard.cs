@@ -85,16 +85,16 @@ namespace Server.Sharding
                 {
                     logger.Information("LoginServerSeed authId {0} successfully found for netstate {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
 
-                    byte authIsValid = 1;
-                    childShardNetState.SendChildShardAck(authIsValid);
-                    logger.Information("Sending SendChildShardAck({0})!", authIsValid);
+                    string account = parentShardNetState.Account.Username;
+                    string password = "" + authIdFromRequest;
+                    childShardNetState.SendChildShardAck(account, password);
+                    logger.Information("Sending SendChildShardAck()");
                 }
                 else
                 {
                     logger.Information("LoginServerSeed authId {0} failed to find netstate authid match {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
 
-                    byte authIsValid = 0;
-                    childShardNetState.SendChildShardAck(authIsValid);
+                    childShardNetState.SendChildShardAck("","");
                 }
             }
             else

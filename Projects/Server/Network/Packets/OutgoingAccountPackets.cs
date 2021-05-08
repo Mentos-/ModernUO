@@ -393,15 +393,27 @@ namespace Server.Network
             ns?.Send(stackalloc byte[] { 0x82, (byte)reason });
 
 
-         /**
-         * Packet: 0x82
-         * Length: 2 bytes
-         *
-         * Sends a reason for rejecting the login
-         */
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SendChildShardAck(this NetState ns, byte authIsValid) =>
-            ns?.Send(stackalloc byte[] { 0x82, authIsValid });
+        /**
+        * Packet: 0x80
+        * Length: 30 bytes for acct + 30 bytes for pwd
+        *
+        * Sends a reason for rejecting the login
+        */
+        public static void SendChildShardAck(this NetState ns, string account, string password)
+        {
+            if (ns == null)
+            {
+                return;
+            }
+
+            var length = 6 + 30 + 30;
+            var writer = new SpanWriter(stackalloc byte[length]);
+            writer.Write((byte)0x80); // Packet ID
+            writer.WriteAscii(account, 30);
+            writer.WriteAscii(password, 30);
+            writer.Write((byte)0xFF);
+            ns.Send(writer.Span);
+        }
 
         /**
          * Packet: 0xA8
