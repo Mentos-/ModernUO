@@ -393,12 +393,6 @@ namespace Server.Network
 
             var authID = reader.ReadInt32();
 
-            if (Core.IsChildShard)
-            {
-                Server.Sharding.ChildShard.HandleParentShardGameLoginRequest(state, authID);
-                return;
-            }
-
             if (!m_AuthIDWindow.TryGetValue(authID, out var ap))
             {
                 state.LogInfo("Invalid client detected, disconnecting...");
@@ -462,10 +456,17 @@ namespace Server.Network
 
         public static void LoginServerSeed(NetState state, CircularBufferReader reader, ref int packetLength)
         {
+            if (Core.IsChildShard)
+            {
+                int authID = reader.ReadInt32();
+                Server.Sharding.ChildShard.HandleLoginServerAuth(state, authID);
+                return;
+            }
+
             if (Server.Sharding.ParentShard.ChildShardIpAddresses.Contains(state.Address.ToString()))
             {
-                int seed = reader.ReadInt32();
-                Console.WriteLine("LoginServerSeed is from child shard: {0} with seed {1}", state.Address, seed);
+                int authID = reader.ReadInt32();
+                Console.WriteLine("LoginServerSeed is from child shard: {0} with authID {1}", state.Address, authID);
                 return;
             }
 
