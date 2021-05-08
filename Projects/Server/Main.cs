@@ -506,6 +506,11 @@ namespace Server
                     events += NetState.HandleAllReceives();
                     events += NetState.Slice();
 
+                    if(Core.IsChildShard)
+                    {
+                        Server.Sharding.ChildShard.Tick();
+                    }
+
                     // Execute captured post-await methods (like Timer.Pause)
                     events += _eventLoopContext.ExecuteTasks();
 

@@ -28,7 +28,7 @@ namespace Server.Sharding
             }
         }
 
-        public static void HandleParentShardGameLoginRequest(NetState state, int authID)
+        public static void HandleLoginServerAuth(NetState state, int authID)
         {
             logger.Information("ChildShard: Received login request pinging parent server with change server authID {0}", authID);
 
@@ -36,6 +36,8 @@ namespace Server.Sharding
             PacketsTable.AdjustPacketSizeByVersion(clientVersion);
 
             PacketHandlers.Load();
+            PacketHandlers.ReceiveCharacterListEvent += CharacterListReceived;
+            PacketHandlers.ReceiveLoginRejectionEvent += ReceiveLoginStatus;
 
             NetClient loginClient = new NetClient(true);
             loginClient.Name = "" + 0;
@@ -77,6 +79,106 @@ namespace Server.Sharding
             string Account = loginClient.Group + "Account" + loginClient.Name;
             string Password = loginClient.Group + "Password" + loginClient.Name;
             loginClient.Send(new PFirstLogin(Account, Password));
+            */
+        }
+
+        public static void Tick()
+        {
+            for (int i = 0; i < NetClient.LoadTestNetClientsLogin.Count; i++)
+            {
+                NetClient nc = NetClient.LoadTestNetClientsLogin[i];
+                if (nc == null)
+                {
+                    continue;
+                }
+                if (nc.IsDisposed && nc.IsConnected)
+                {
+                    nc.Disconnect();
+                }
+                else if (nc.IsConnected)
+                {
+                    nc.Update();
+                }
+                else
+                {
+                    Console.WriteLine("LoginTestNetClient is not connected " + nc.Name);
+                }
+            }
+        }
+
+        static void ReceiveLoginStatus(object sender, ReceiveLoginRejectionEventArgs e)
+        {
+            NetClient Client = (NetClient)sender;
+            Console.WriteLine("ReceiveLoginStatus " + e.ErrorMessage);
+            //IsLoadTestActive = false;
+            //LoadTestFailureMessage = e.ErrorMessage;
+        }
+
+        static void CharacterListReceived(object sender, ReceiveCharacterListEventArgs e)
+        {
+            NetClient Client = (NetClient)sender;
+            logger.Information("Char List Received " + e.ToString());
+
+            foreach (string characterName in e.Characters)
+            {
+                if (string.IsNullOrEmpty(characterName) == false)
+                {
+                    logger.Information("characterName: " + characterName);
+                }
+            }
+            /*
+            //otherwise create a new character
+            ClientVersion clientVersion = Client.Version;
+            uint clientProtocol = (uint)Client.GetClientProtocol();
+            string newCharacterName = "" + Client.Name;// Convert(Int64.Parse(Client.Name));//convert the load test bots number into a unique character name
+            byte characterStrength = 20;
+            byte characterIntelligence = 20;
+            byte characterDexterity = 20;
+            List<CreateCharacterSkill> characterSkills = new List<CreateCharacterSkill>();
+            characterSkills.Add(new CreateCharacterSkill("Alchemy", 0, 0));
+            characterSkills.Add(new CreateCharacterSkill("Magery", 25, 30));
+            characterSkills.Add(new CreateCharacterSkill("Meditation", 46, 30));
+            characterSkills.Add(new CreateCharacterSkill("Wrestling", 43, 30));
+            Flags characterFlags = 0;
+            byte characterRace = 0;
+            ushort characterHue = 0;
+            ushort characterHairHue = 0;
+            ushort characterHairGraphic = 0;
+            ushort characterBeardHue = 0;
+            ushort characterBeardGraphic = 0;
+            ushort characterShirtHue = 0;
+            ushort characterPantsHue = 0;
+            int cityIndex = 0;
+            uint clientIP = NetClient.ClientAddress;
+            int serverIndex = 0;
+            uint slot = 0;
+            byte profession = 0;
+
+            PCreateCharacter newCharacter = new PCreateCharacter
+                (
+                clientVersion,
+                clientProtocol,
+                newCharacterName,
+                characterStrength,
+                characterIntelligence,
+                characterDexterity,
+                characterSkills,
+                characterFlags,
+                characterRace,
+                characterHue,
+                characterHairHue,
+                characterHairGraphic,
+                characterBeardHue,
+                characterBeardGraphic,
+                characterShirtHue,
+                characterPantsHue,
+                cityIndex,
+                clientIP,
+                serverIndex,
+                slot,
+                profession);
+
+            Client.Send(newCharacter);
             */
         }
     }
