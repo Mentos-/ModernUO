@@ -462,10 +462,9 @@ namespace Server.Network
 
         public static void LoginServerSeed(NetState state, CircularBufferReader reader, ref int packetLength)
         {
-            if (Server.Sharding.ParentShard.ChildShardIpAddresses.Contains(state.Address.ToString()))
+            //see if this login request is from a child shard
+            if (Server.Sharding.ParentShard.HandleChildShardLoginRequest(state, reader, ref packetLength))
             {
-                int seed = reader.ReadInt32();
-                Console.WriteLine("LoginServerSeed is from child shard: {0} with seed {1}", state.Address, seed);
                 return;
             }
 

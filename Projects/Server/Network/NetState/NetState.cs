@@ -70,6 +70,7 @@ namespace Server.Network
         internal ProtocolState _protocolState = ProtocolState.Uninitialized;
         internal RecvState _recvState = RecvState.Uninitialized;
         internal SendState _sendState = SendState.Uninitialized;
+        internal int _lastChildShardAuthId = 0;
 
         internal enum ParserState
         {
