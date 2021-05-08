@@ -82,6 +82,10 @@ namespace Server.Spells.Fourth
             {
                 Caster.SendLocalizedMessage(502412); // There are no charges left on that item.
             }
+            else if(IsChildShardLocation(Caster, map, loc, TravelCheckType.RecallTo))
+            {
+
+            }
             else if (CheckSequence())
             {
                 BaseCreature.TeleportPets(Caster, loc, map, true);

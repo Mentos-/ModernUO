@@ -456,6 +456,11 @@ namespace Server.Network
 
         public static void LoginServerSeed(NetState state, CircularBufferReader reader, ref int packetLength)
         {
+            if(Core.ChildShardIpAddresses.Contains(state.Address.ToString()))
+            {
+                Console.WriteLine("LoginServerSeed is from child shard: {0}", state.Address);
+            }
+
             state._seed = reader.ReadInt32();
             state.Seeded = true;
 

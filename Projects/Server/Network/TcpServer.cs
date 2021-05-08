@@ -129,7 +129,14 @@ namespace Server.Network
             while (++count <= MaxConnectionsPerLoop && _connectedQueue.TryDequeue(out var ns))
             {
                 Instances.Add(ns);
-                ns.LogInfo("Connected. [{0} Online]", Instances.Count);
+                if (Core.ChildShardIpAddresses.Contains(ns.Address.ToString()))
+                {
+                    ns.LogInfo(" ChildShard. Connected. [{0} Online]", Instances.Count);
+                }
+                else
+                {
+                    ns.LogInfo("Connected. [{0} Online]", Instances.Count);
+                }
                 ns.Start();
             }
 
