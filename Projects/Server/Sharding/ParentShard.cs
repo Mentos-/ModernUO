@@ -12,11 +12,9 @@ namespace Server.Sharding
     {
         public static List<string> ChildShardIpAddresses = new List<string> { "192.168.1.4" };
 
-        private static readonly ILogger logger = LogFactory.GetLogger(typeof(ParentShard));
+        private static Dictionary<int, NetState> NetStateChildShardAuthId = new Dictionary<int, NetState>();
 
-        private const int m_AuthIDWindowSize = 128;
-        private static readonly Dictionary<int, AuthIDPersistence> m_AuthIDWindow =
-            new(m_AuthIDWindowSize);
+        private static readonly ILogger logger = LogFactory.GetLogger(typeof(ParentShard));
 
         public static void Initialize()
         {
@@ -42,62 +40,63 @@ namespace Server.Sharding
 
         public static void OnPlayerMobileLocationChange(Mobile m, Point3D oldLocation)
         {
-            Console.WriteLine("PlayerMobile changed location from {0} to {1}", m.Location, oldLocation);
+            logger.Information("PlayerMobile changed location from {0} to {1}", m.Location, oldLocation);
 
+            SendChangeToChildShardRequest(m, oldLocation);
+        }
+
+        private static void SendChangeToChildShardRequest(Mobile m, Point3D oldLocation)
+        {
             IPEndPoint childShardEndpoint = GetIpEndpointForLocation(m.Location);
             ServerInfo info = new ServerInfo("child", 0, TimeZoneInfo.Utc, childShardEndpoint);
 
             NetState state = m.NetState;
-            state._authId = GenerateAuthID(state);
-            state.SentFirstPacket = false;
-            state.SendPlayServerAck(info, state._authId);
-        }
-        internal struct AuthIDPersistence
-        {
-            public DateTime Age;
-            public readonly ClientVersion Version;
-
-            public AuthIDPersistence(ClientVersion v)
-            {
-                Age = Core.Now;
-                Version = v;
-            }
-        }
-
-        private static int GenerateAuthID(this NetState state)
-        {
-            if (m_AuthIDWindow.Count == m_AuthIDWindowSize)
-            {
-                var oldestID = 0;
-                var oldest = DateTime.MaxValue;
-
-                foreach (var kvp in m_AuthIDWindow)
-                {
-                    if (kvp.Value.Age < oldest)
-                    {
-                        oldestID = kvp.Key;
-                        oldest = kvp.Value.Age;
-                    }
-                }
-
-                m_AuthIDWindow.Remove(oldestID);
-            }
-
-            int authID;
-
             do
             {
-                authID = Utility.Random(1, int.MaxValue - 1);
+                state._lastChildShardAuthId = Utility.Random(1, int.MaxValue - 1);
+            } while (NetStateChildShardAuthId.ContainsKey(state._lastChildShardAuthId));//make sure we don't hand out the same authId to two different clients
 
-                if (Utility.RandomBool())
+            NetStateChildShardAuthId.Add(state._lastChildShardAuthId, state);
+            
+            state.SentFirstPacket = false;
+            state.SendPlayServerAck(info, state._lastChildShardAuthId);
+
+            logger.Information("Sent change to child shard request. authId: " + state._lastChildShardAuthId);
+        }
+
+        public static bool HandleChildShardLoginRequest(NetState childShardNetState, CircularBufferReader reader, ref int packetLength)
+        {
+            if (ChildShardIpAddresses.Contains(childShardNetState.Address.ToString()) == false)
+            {
+                return false;
+            }
+
+            int authIdFromRequest = reader.ReadInt32();
+            logger.Information("LoginServerSeed is from child shard: {0} with seed {1}", childShardNetState.Address, authIdFromRequest);
+
+            NetState parentShardNetState;
+
+            if (NetStateChildShardAuthId.TryGetValue(authIdFromRequest, out parentShardNetState))
+            {
+                NetStateChildShardAuthId.Remove(authIdFromRequest);//make sure we remove the request so that our list doesn't grow indefinitely
+
+                if (parentShardNetState._lastChildShardAuthId == authIdFromRequest)
                 {
-                    authID |= 1 << 31;
+                    logger.Information("LoginServerSeed authId {0} successfully found for netstate {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
+                    //TODO send full character data over to childShardNetState, for now we just send name
+                    childShardNetState.SendCharacterList();
                 }
-            } while (m_AuthIDWindow.ContainsKey(authID));
+                else
+                {
+                    logger.Information("LoginServerSeed authId {0} failed to find netstate authid match {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
+                }
+            }
+            else
+            {
+                logger.Information("LoginServerSeed authId {0} failed to find netstate in authId->Netstate dictionary!", authIdFromRequest);
+            }
 
-            m_AuthIDWindow[authID] = new AuthIDPersistence(state.Version);
-
-            return authID;
+            return true;
         }
     }
 }
