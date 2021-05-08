@@ -458,8 +458,7 @@ namespace Server.Network
         {
             if (Core.IsChildShard)
             {
-                int authID = reader.ReadInt32();
-                Server.Sharding.ChildShard.HandleLoginServerAuth(state, authID);
+                Server.Sharding.ChildShard.HandleLoginServerAuth(state, reader, ref packetLength);
                 return;
             }
 

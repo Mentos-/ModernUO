@@ -374,6 +374,8 @@ namespace LoadTestUO
             Handlers.Add(0x82, ReceiveLoginRejection);
             Handlers.Add(0x85, ReceiveLoginRejection);
             Handlers.Add(0x53, ReceiveLoginRejection);
+            // child shard
+            Handlers.Add(0x80, ReceiveAccountInfo);
 
             #region Game
             Handlers.Add(0x1B, EnterWorld);
@@ -502,6 +504,13 @@ namespace LoadTestUO
         private static void ReceiveCharacterList(NetClient netClient, ref PacketBufferReader p)
         {
             ReceiveCharacterListEvent?.Invoke(netClient, new ReceiveCharacterListEventArgs(netClient, ref p));
+        }
+
+        private static void ReceiveAccountInfo(NetClient netClient, ref PacketBufferReader p)
+        {
+            string acct = p.ReadASCII(30);
+            string pwd = p.ReadASCII(30);
+            Server.Sharding.ChildShard.ReceiveAccountInfo(acct, pwd);
         }
 
         private static void ReceiveLoginRejection(NetClient netClient, ref PacketBufferReader p)

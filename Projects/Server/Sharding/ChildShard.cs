@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using Server.Logging;
 using System.Net;
+
+using Server.Accounting;
 using Server.Network;
 
 using LoadTestUO;
@@ -28,28 +30,30 @@ namespace Server.Sharding
             }
         }
 
-        public static void HandleLoginServerAuth(NetState state, int authID)
+        public static void HandleLoginServerAuth(NetState state, CircularBufferReader reader, ref int packetLength)
         {
-            logger.Information("ChildShard: Received login request pinging parent server with change server authID {0}", authID);
+            int authID = reader.ReadInt32();
+            //this is the unused ClientVersion of the client trying to switch between Parent and Child shards
+            //at this time we are only communicating with ChildShard's packet handler so we do not need it
+            //state.Version = new ClientVersion(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
 
+            logger.Information("ChildShard: Received login request pinging parent server with authID {0}", authID);
+
+            //this is the ClientVersion of our PacketHandler that talks from ChildShard to ParentShard
             LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
             PacketsTable.AdjustPacketSizeByVersion(clientVersion);
-
             PacketHandlers.Load();
-            PacketHandlers.ReceiveCharacterListEvent += CharacterListReceived;
-            PacketHandlers.ReceiveLoginRejectionEvent += ReceiveLoginStatus;
 
             NetClient loginClient = new NetClient(true);
             loginClient.Name = "" + 0;
             loginClient.AuthId = authID;
             loginClient.Group = "";// group;
             loginClient.Version = clientVersion;
-            //loginClient.Connected += NetClient_ConnectedToServer;
 
-            ConnectNetLoginClientToServer(loginClient, ParentIp, ParentPort);
+            ConnectChildShardToParentShard(loginClient, ParentIp, ParentPort);
         }
 
-        static async void ConnectNetLoginClientToServer(NetClient loginClient, string ip, int port)
+        static async void ConnectChildShardToParentShard(NetClient loginClient, string ip, int port)
         {
             if (await loginClient.Connect(ip, (ushort)port))
             {
@@ -59,27 +63,45 @@ namespace Server.Sharding
 
                     Console.WriteLine("Connected to parent server successfully!");
 
-                    SendSeedPacket(loginClient);
+                    SendAuthIdPacket(loginClient);
                 }
                 else
                 {
-                    Console.WriteLine("Login NetClient failed to connect " + ip);
+                    Console.WriteLine("Connected to parent server failed " + ip);
                 }
-                //
             }
         }
 
-        static void SendSeedPacket(NetClient loginClient)
+        static void SendAuthIdPacket(NetClient loginClient)
         {
             PSeedChildShard SeedChildShard = new PSeedChildShard(loginClient.AuthId);
 
             loginClient.Send(SeedChildShard.ToArray(), SeedChildShard.Length, true, true);
+        }
 
+        public static void ReceiveAccountInfo(string account, string password)
+        {
+            logger.Information("ChildShard: ReceiveAccountInfo account: {0} password: {1}", account, password);
             /*
-            string Account = loginClient.Group + "Account" + loginClient.Name;
-            string Password = loginClient.Group + "Password" + loginClient.Name;
-            loginClient.Send(new PFirstLogin(Account, Password));
-            */
+            if (!(Accounts.GetAccount(account) is Account acct))
+            {
+                // To prevent someone from making an account of just '' or a bunch of meaningless spaces
+                if (AutoAccountCreation && un.Trim().Length > 0)
+                {
+                    e.State.Account = acct = CreateAccount(e.State, un, pw);
+                    e.Accepted = acct?.CheckAccess(e.State) ?? false;
+
+                    if (!e.Accepted)
+                    {
+                        e.RejectReason = ALRReason.BadComm;
+                    }
+                }
+                else
+                {
+                    logger.Information("Login: {0}: Invalid username '{1}'", e.State, un);
+                    e.RejectReason = ALRReason.Invalid;
+                }
+            }*/
         }
 
         public static void Tick()
@@ -106,80 +128,5 @@ namespace Server.Sharding
             }
         }
 
-        static void ReceiveLoginStatus(object sender, ReceiveLoginRejectionEventArgs e)
-        {
-            NetClient Client = (NetClient)sender;
-            Console.WriteLine("ReceiveLoginStatus " + e.ErrorMessage);
-            //IsLoadTestActive = false;
-            //LoadTestFailureMessage = e.ErrorMessage;
-        }
-
-        static void CharacterListReceived(object sender, ReceiveCharacterListEventArgs e)
-        {
-            NetClient Client = (NetClient)sender;
-            logger.Information("Char List Received " + e.ToString());
-
-            foreach (string characterName in e.Characters)
-            {
-                if (string.IsNullOrEmpty(characterName) == false)
-                {
-                    logger.Information("characterName: " + characterName);
-                }
-            }
-            /*
-            //otherwise create a new character
-            ClientVersion clientVersion = Client.Version;
-            uint clientProtocol = (uint)Client.GetClientProtocol();
-            string newCharacterName = "" + Client.Name;// Convert(Int64.Parse(Client.Name));//convert the load test bots number into a unique character name
-            byte characterStrength = 20;
-            byte characterIntelligence = 20;
-            byte characterDexterity = 20;
-            List<CreateCharacterSkill> characterSkills = new List<CreateCharacterSkill>();
-            characterSkills.Add(new CreateCharacterSkill("Alchemy", 0, 0));
-            characterSkills.Add(new CreateCharacterSkill("Magery", 25, 30));
-            characterSkills.Add(new CreateCharacterSkill("Meditation", 46, 30));
-            characterSkills.Add(new CreateCharacterSkill("Wrestling", 43, 30));
-            Flags characterFlags = 0;
-            byte characterRace = 0;
-            ushort characterHue = 0;
-            ushort characterHairHue = 0;
-            ushort characterHairGraphic = 0;
-            ushort characterBeardHue = 0;
-            ushort characterBeardGraphic = 0;
-            ushort characterShirtHue = 0;
-            ushort characterPantsHue = 0;
-            int cityIndex = 0;
-            uint clientIP = NetClient.ClientAddress;
-            int serverIndex = 0;
-            uint slot = 0;
-            byte profession = 0;
-
-            PCreateCharacter newCharacter = new PCreateCharacter
-                (
-                clientVersion,
-                clientProtocol,
-                newCharacterName,
-                characterStrength,
-                characterIntelligence,
-                characterDexterity,
-                characterSkills,
-                characterFlags,
-                characterRace,
-                characterHue,
-                characterHairHue,
-                characterHairGraphic,
-                characterBeardHue,
-                characterBeardGraphic,
-                characterShirtHue,
-                characterPantsHue,
-                cityIndex,
-                clientIP,
-                serverIndex,
-                slot,
-                profession);
-
-            Client.Send(newCharacter);
-            */
-        }
     }
 }

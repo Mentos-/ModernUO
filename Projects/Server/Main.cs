@@ -107,7 +107,7 @@ namespace Server
             }
         }
 
-        public static bool IsChildShard = false;
+        public static bool IsChildShard = true;
 
         public static TimeSpan ProfileTime =>
             TimeSpan.FromTicks(_profileStart > 0 ? _profileTime + (Stopwatch.GetTimestamp() - _profileStart) : _profileTime);
