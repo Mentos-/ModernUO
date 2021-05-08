@@ -64,6 +64,7 @@ namespace Server.Sharding
             logger.Information("Sent change to child shard request. authId: " + state._lastChildShardAuthId);
         }
 
+        //After ChildShard receives authId from client it sends it to us to begin transfer
         public static bool HandleChildShardLoginRequest(NetState childShardNetState, CircularBufferReader reader, ref int packetLength)
         {
             if (ChildShardIpAddresses.Contains(childShardNetState.Address.ToString()) == false)
@@ -72,7 +73,7 @@ namespace Server.Sharding
             }
 
             int authIdFromRequest = reader.ReadInt32();
-            logger.Information("LoginServerSeed is from child shard: {0} with seed {1}", childShardNetState.Address, authIdFromRequest);
+            logger.Information("LoginServerRequest is from child shard: {0} with authId {1}", childShardNetState.Address, authIdFromRequest);
 
             NetState parentShardNetState;
 
@@ -83,12 +84,17 @@ namespace Server.Sharding
                 if (parentShardNetState._lastChildShardAuthId == authIdFromRequest)
                 {
                     logger.Information("LoginServerSeed authId {0} successfully found for netstate {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
-                    //TODO send full character data over to childShardNetState, for now we just send name
-                    childShardNetState.SendCharacterList();
+
+                    byte authIsValid = 1;
+                    childShardNetState.SendChildShardAck(authIsValid);
+                    logger.Information("Sending SendChildShardAck({0})!", authIsValid);
                 }
                 else
                 {
                     logger.Information("LoginServerSeed authId {0} failed to find netstate authid match {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
+
+                    byte authIsValid = 0;
+                    childShardNetState.SendChildShardAck(authIsValid);
                 }
             }
             else

@@ -392,6 +392,17 @@ namespace Server.Network
         public static void SendAccountLoginRejected(this NetState ns, ALRReason reason) =>
             ns?.Send(stackalloc byte[] { 0x82, (byte)reason });
 
+
+         /**
+         * Packet: 0x82
+         * Length: 2 bytes
+         *
+         * Sends a reason for rejecting the login
+         */
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SendChildShardAck(this NetState ns, byte authIsValid) =>
+            ns?.Send(stackalloc byte[] { 0x82, authIsValid });
+
         /**
          * Packet: 0xA8
          * Length: 6 + 40 bytes per server listing
