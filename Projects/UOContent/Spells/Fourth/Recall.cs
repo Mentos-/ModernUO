@@ -82,9 +82,9 @@ namespace Server.Spells.Fourth
             {
                 Caster.SendLocalizedMessage(502412); // There are no charges left on that item.
             }
-            else if(IsChildShardLocation(Caster, map, loc, TravelCheckType.RecallTo))
+            else if(!Server.Sharding.ChildShard.CheckTravel(Caster, map, loc))
             {
-
+                Caster.SendMessage("That location is on a child shard that you cannot travel to right now.");
             }
             else if (CheckSequence())
             {

@@ -2284,6 +2284,8 @@ namespace Server.Mobiles
 
             DuelContext?.OnLocationChanged(this);
 
+            Server.Sharding.ChildShard.OnPlayerMobileLocationChange(this, oldLocation);
+
             var context = DesignContext;
 
             if (context == null || m_NoRecursion)
@@ -2318,6 +2320,8 @@ namespace Server.Mobiles
             Map = foundation.Map;
 
             m_NoRecursion = false;
+
+            
         }
 
         public override bool OnMoveOver(Mobile m) =>

@@ -107,7 +107,7 @@ namespace Server
             }
         }
 
-        public static bool IsChildShard = true;
+        public static bool IsChildShard = false;
         public static string ParentIp = "192.168.1.172";
         public static int ParentPort = 2583;
 

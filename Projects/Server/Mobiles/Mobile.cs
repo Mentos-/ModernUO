@@ -7593,6 +7593,7 @@ namespace Server
         /// </summary>
         protected virtual void OnLocationChange(Point3D oldLocation)
         {
+
         }
 
         public bool HasFreeHand() => FindItemOnLayer(Layer.TwoHanded) == null;
