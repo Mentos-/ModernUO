@@ -16,10 +16,6 @@ namespace Server.Sharding
 
         private static readonly ILogger logger = LogFactory.GetLogger(typeof(ParentShard));
 
-        private const int m_AuthIDWindowSize = 128;
-        private static readonly Dictionary<int, AuthIDPersistence> m_AuthIDWindow =
-            new(m_AuthIDWindowSize);
-
         public static void Initialize()
         {
             Timer.DelayCall(TimeSpan.FromSeconds(3.0), Run);
@@ -55,14 +51,17 @@ namespace Server.Sharding
             ServerInfo info = new ServerInfo("child", 0, TimeZoneInfo.Utc, childShardEndpoint);
 
             NetState state = m.NetState;
-            state._authId = GenerateAuthID(state);
-            state._lastChildShardAuthId = state._authId;
-            NetStateChildShardAuthId.Add(state._authId, state);
+            do
+            {
+                state._lastChildShardAuthId = Utility.Random(1, int.MaxValue - 1);
+            } while (NetStateChildShardAuthId.ContainsKey(state._lastChildShardAuthId));//make sure we don't hand out the same authId to two different clients
+
+            NetStateChildShardAuthId.Add(state._lastChildShardAuthId, state);
             
             state.SentFirstPacket = false;
-            state.SendPlayServerAck(info, state._authId);
+            state.SendPlayServerAck(info, state._lastChildShardAuthId);
 
-            logger.Information("Sent change to child shard request. state._authId: " + state._authId);
+            logger.Information("Sent change to child shard request. authId: " + state._lastChildShardAuthId);
         }
 
         public static bool HandleChildShardLoginRequest(NetState childShardNetState, CircularBufferReader reader, ref int packetLength)
@@ -75,17 +74,21 @@ namespace Server.Sharding
             int authIdFromRequest = reader.ReadInt32();
             logger.Information("LoginServerSeed is from child shard: {0} with seed {1}", childShardNetState.Address, authIdFromRequest);
 
-            NetState netstate;
+            NetState parentShardNetState;
 
-            if (NetStateChildShardAuthId.TryGetValue(authIdFromRequest, out netstate))
+            if (NetStateChildShardAuthId.TryGetValue(authIdFromRequest, out parentShardNetState))
             {
-                if (netstate._lastChildShardAuthId == authIdFromRequest)
+                NetStateChildShardAuthId.Remove(authIdFromRequest);//make sure we remove the request so that our list doesn't grow indefinitely
+
+                if (parentShardNetState._lastChildShardAuthId == authIdFromRequest)
                 {
-                    logger.Information("LoginServerSeed authId {0} successfully found for netstate {1}!", authIdFromRequest, netstate._lastChildShardAuthId);
+                    logger.Information("LoginServerSeed authId {0} successfully found for netstate {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
+                    //TODO send full character data over to childShardNetState, for now we just send name
+                    childShardNetState.SendCharacterList();
                 }
                 else
                 {
-                    logger.Information("LoginServerSeed authId {0} failed to find netstate authid match {1}!", authIdFromRequest, netstate._lastChildShardAuthId);
+                    logger.Information("LoginServerSeed authId {0} failed to find netstate authid match {1}!", authIdFromRequest, parentShardNetState._lastChildShardAuthId);
                 }
             }
             else
@@ -94,54 +97,6 @@ namespace Server.Sharding
             }
 
             return true;
-        }
-
-        internal struct AuthIDPersistence
-        {
-            public DateTime Age;
-            public readonly ClientVersion Version;
-
-            public AuthIDPersistence(ClientVersion v)
-            {
-                Age = Core.Now;
-                Version = v;
-            }
-        }
-
-        private static int GenerateAuthID(this NetState state)
-        {
-            if (m_AuthIDWindow.Count == m_AuthIDWindowSize)
-            {
-                var oldestID = 0;
-                var oldest = DateTime.MaxValue;
-
-                foreach (var kvp in m_AuthIDWindow)
-                {
-                    if (kvp.Value.Age < oldest)
-                    {
-                        oldestID = kvp.Key;
-                        oldest = kvp.Value.Age;
-                    }
-                }
-
-                m_AuthIDWindow.Remove(oldestID);
-            }
-
-            int authID;
-
-            do
-            {
-                authID = Utility.Random(1, int.MaxValue - 1);
-
-                if (Utility.RandomBool())
-                {
-                    authID |= 1 << 31;
-                }
-            } while (m_AuthIDWindow.ContainsKey(authID));
-
-            m_AuthIDWindow[authID] = new AuthIDPersistence(state.Version);
-
-            return authID;
         }
     }
 }
