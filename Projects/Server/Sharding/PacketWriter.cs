@@ -60,6 +60,14 @@ namespace LoadTestUO
         }
     }
 
+    internal sealed class PSeedChildShard : PacketWriter
+    {
+        public PSeedChildShard(int authId) : base(0xEF)
+        {
+            WriteUInt((uint)authId);
+        }
+    }
+
     internal sealed class PFirstLogin : PacketWriter
     {
         public PFirstLogin(string account, string password) : base(0x80)

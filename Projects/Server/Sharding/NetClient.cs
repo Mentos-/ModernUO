@@ -57,6 +57,7 @@ namespace LoadTestUO
         //Load test additions
         public string Name;
         public string Group;//prefix for account creation so that multiple instances of the application don't try to log into the same accounts
+        public int AuthId;//authid received from clients wanting to log into child shards that we send to the parent shard to get character data 
         public ClientVersion Version = ClientVersion.CV_705301;
         public string VersionString = "7.0.59.5";
         internal WalkerManager Walker { get; } = new WalkerManager();

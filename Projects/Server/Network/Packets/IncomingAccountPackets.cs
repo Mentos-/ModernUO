@@ -393,6 +393,12 @@ namespace Server.Network
 
             var authID = reader.ReadInt32();
 
+            if (Core.IsChildShard)
+            {
+                Server.Sharding.ChildShard.HandleParentShardGameLoginRequest(state, authID);
+                return;
+            }
+
             if (!m_AuthIDWindow.TryGetValue(authID, out var ap))
             {
                 state.LogInfo("Invalid client detected, disconnecting...");

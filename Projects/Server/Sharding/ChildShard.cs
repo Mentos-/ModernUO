@@ -16,6 +16,64 @@ namespace Server.Sharding
         private static readonly Dictionary<int, AuthIDPersistence> m_AuthIDWindow =
             new(m_AuthIDWindowSize);
 
+        public static void Initialize()
+        {
+            Timer.DelayCall(TimeSpan.FromSeconds(3.0), Run);
+        }
+
+        public static void Run()
+        {
+            if (Core.IsChildShard)
+            {
+                return;
+                logger.Information("ChildShard: Pinging parent server {0}:{1} to let them know we exist.", Core.ParentIp, Core.ParentPort);
+
+                string IpAddress = Core.ParentIp;
+                int Port = Core.ParentPort;
+
+                LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
+                PacketsTable.AdjustPacketSizeByVersion(clientVersion);
+
+                PacketHandlers.Load();
+                /*
+                PacketHandlers.ServerListReceivedEvent += ServerListReceived;
+                PacketHandlers.ReceiveServerRelayEvent += ReceiveServerRelay;
+                PacketHandlers.ReceiveCharacterListEvent += CharacterListReceived;
+                PacketHandlers.EnterWorldEvent += EnterWorld;
+                PacketHandlers.UpdatePlayerEvent += UpdatePlayer;
+                PacketHandlers.ReceiveLoginRejectionEvent += ReceiveLoginRejection;
+                */
+                //for (int i = 0; i < NumberOfLoadTestClients; i++)
+                {
+                    NetClient loginClient = new NetClient(true);
+                    loginClient.Name = "" + 0;
+                    loginClient.Group = "";// group;
+                    loginClient.Version = clientVersion;
+                    //loginClient.Connected += NetClient_ConnectedToServer;
+
+                    ConnectNetLoginClientToServer(loginClient, IpAddress, Port);
+                }
+                /*
+                // Create a timer with a one second interval.
+                aTimer = new System.Timers.Timer(1000);
+                aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+                aTimer.Enabled = true;
+
+                while (IsLoadTestActive)
+                {
+                    OnNetworkUpdate();
+                }
+
+                if (string.IsNullOrEmpty(LoadTestFailureMessage) == false)
+                {
+                    Console.WriteLine("Test failed: " + LoadTestFailureMessage);
+                    Console.ReadLine();
+                }
+                */
+            }
+        }
+
+
         public static bool CheckTravel(Mobile caster, Map map, Point3D loc)
         {
             return true;
@@ -88,60 +146,26 @@ namespace Server.Sharding
             return authID;
         }
 
-        public static void Initialize()
+        public static void HandleParentShardGameLoginRequest(NetState state, int authID)
         {
-            Timer.DelayCall(TimeSpan.FromSeconds(3.0), Run);
-        }
+            logger.Information("Pinging parent server {0}:{1} with child shard login request authID {2}", Core.ParentIp, Core.ParentPort, authID);
 
-        public static void Run()
-        {
-            if (Core.IsChildShard)
-            {
-                logger.Information("ChildShard: Pinging parent server {0}:{1} to let them know we exist.", Core.ParentIp, Core.ParentPort);
+            string IpAddress = Core.ParentIp;
+            int Port = Core.ParentPort;
 
-                string IpAddress = Core.ParentIp;
-                int Port = Core.ParentPort;
+            LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
+            PacketsTable.AdjustPacketSizeByVersion(clientVersion);
 
-                LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
-                PacketsTable.AdjustPacketSizeByVersion(clientVersion);
+            PacketHandlers.Load();
 
-                PacketHandlers.Load();
-                /*
-                PacketHandlers.ServerListReceivedEvent += ServerListReceived;
-                PacketHandlers.ReceiveServerRelayEvent += ReceiveServerRelay;
-                PacketHandlers.ReceiveCharacterListEvent += CharacterListReceived;
-                PacketHandlers.EnterWorldEvent += EnterWorld;
-                PacketHandlers.UpdatePlayerEvent += UpdatePlayer;
-                PacketHandlers.ReceiveLoginRejectionEvent += ReceiveLoginRejection;
-                */
-                //for (int i = 0; i < NumberOfLoadTestClients; i++)
-                {
-                    NetClient loginClient = new NetClient(true);
-                    loginClient.Name = "" + 0;
-                    loginClient.Group = "";// group;
-                    loginClient.Version = clientVersion;
-                    //loginClient.Connected += NetClient_ConnectedToServer;
+            NetClient loginClient = new NetClient(true);
+            loginClient.Name = "" + 0;
+            loginClient.AuthId = authID;
+            loginClient.Group = "";// group;
+            loginClient.Version = clientVersion;
+            //loginClient.Connected += NetClient_ConnectedToServer;
 
-                    ConnectNetLoginClientToServer(loginClient, IpAddress, Port);
-                }
-                /*
-                // Create a timer with a one second interval.
-                aTimer = new System.Timers.Timer(1000);
-                aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-                aTimer.Enabled = true;
-
-                while (IsLoadTestActive)
-                {
-                    OnNetworkUpdate();
-                }
-
-                if (string.IsNullOrEmpty(LoadTestFailureMessage) == false)
-                {
-                    Console.WriteLine("Test failed: " + LoadTestFailureMessage);
-                    Console.ReadLine();
-                }
-                */
-            }
+            ConnectNetLoginClientToServer(loginClient, IpAddress, Port);
         }
 
         static async void ConnectNetLoginClientToServer(NetClient loginClient, string ip, int port)
@@ -166,43 +190,15 @@ namespace Server.Sharding
 
         static void SendSeedPacket(NetClient loginClient)
         {
-            if (loginClient.Version >= LoadTestUO.ClientVersion.CV_6040)
-            {
-                uint clientVersion = (uint)loginClient.Version;
+            PSeedChildShard SeedChildShard = new PSeedChildShard(loginClient.AuthId);
 
-                byte major = (byte)(clientVersion >> 24);
-                byte minor = (byte)(clientVersion >> 16);
-                byte build = (byte)(clientVersion >> 8);
-                byte extra = (byte)clientVersion;
+            loginClient.Send(SeedChildShard.ToArray(), SeedChildShard.Length, true, true);
 
-                PSeed packet = new PSeed
-                (
-                    NetClient.ClientAddress,
-                    major,
-                    minor,
-                    build,
-                    extra
-                );
-
-                loginClient.Send(packet.ToArray(), packet.Length, true, true);
-            }
-            else
-            {
-                uint address = NetClient.ClientAddress;
-
-                // TODO: stackalloc
-                byte[] packet = new byte[4];
-                packet[0] = (byte)(address >> 24);
-                packet[1] = (byte)(address >> 16);
-                packet[2] = (byte)(address >> 8);
-                packet[3] = (byte)address;
-
-                loginClient.Send(packet, packet.Length, true, true);
-            }
-
+            /*
             string Account = loginClient.Group + "Account" + loginClient.Name;
             string Password = loginClient.Group + "Password" + loginClient.Name;
             loginClient.Send(new PFirstLogin(Account, Password));
+            */
         }
     }
 }
