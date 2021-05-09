@@ -290,6 +290,21 @@ namespace LoadTestUO
         }
     }
 
+    
+    internal class ReceiveAccountInfoArgs : EventArgs
+    {
+        public string Account;
+        public string Password;
+        public NetClient NetClient;
+
+        internal ReceiveAccountInfoArgs(NetClient inNetClient, string inAccount, string inPassword)
+        {
+            Account = inAccount;
+            Password = inPassword;
+            NetClient = inNetClient;
+        }
+    }
+
     internal class ReceiveLoginRejectionEventArgs : EventArgs
     {
         public string ErrorMessage;
@@ -340,6 +355,7 @@ namespace LoadTestUO
         public static event EventHandler<ReceiveServerRelayEventArgs> ReceiveServerRelayEvent;
         public static event EventHandler<ReceiveCharacterListEventArgs> ReceiveCharacterListEvent;
         public static event EventHandler<EnterWorldEventArgs> EnterWorldEvent;
+        public static event EventHandler<ReceiveAccountInfoArgs> ReceiveAccountInfoEvent;
         public static event EventHandler<UpdatePlayerEventArgs> UpdatePlayerEvent;
         public static event EventHandler<ReceiveLoginRejectionEventArgs> ReceiveLoginRejectionEvent; 
 
@@ -510,7 +526,7 @@ namespace LoadTestUO
         {
             string acct = p.ReadASCII(30);
             string pwd = p.ReadASCII(30);
-            Server.Sharding.ChildShard.ReceiveAccountInfo(acct, pwd);
+            ReceiveAccountInfoEvent?.Invoke(netClient, new ReceiveAccountInfoArgs(netClient, acct, pwd));
         }
 
         private static void ReceiveLoginRejection(NetClient netClient, ref PacketBufferReader p)

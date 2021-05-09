@@ -17,6 +17,8 @@ namespace Server.Sharding
 
         private static readonly ILogger logger = LogFactory.GetLogger(typeof(ChildShard));
 
+        private static Dictionary<int, NetState> NetStateChildShardAuthId = new Dictionary<int, NetState>();
+
         public static void Initialize()
         {
             Timer.DelayCall(TimeSpan.FromSeconds(3.0), Run);
@@ -28,6 +30,11 @@ namespace Server.Sharding
             {
                 logger.Information("Server is configured as a child shard with parent server at {0}:{1} ", ParentIp, ParentPort);
             }
+        }
+
+        public static void OnPlayerMobileLocationChange(Mobile m, Point3D oldLocation)
+        {
+            logger.Information("PlayerMobile {0} changed location from {1} to {2}", m.Name, m.Location, oldLocation);
         }
 
         public static void HandleLoginServerAuth(NetState state, CircularBufferReader reader, ref int packetLength)
@@ -43,12 +50,15 @@ namespace Server.Sharding
             LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
             PacketsTable.AdjustPacketSizeByVersion(clientVersion);
             PacketHandlers.Load();
+            PacketHandlers.ReceiveAccountInfoEvent += ReceiveAccountInfo;
 
             NetClient loginClient = new NetClient(true);
             loginClient.Name = "" + 0;
             loginClient.AuthId = authID;
             loginClient.Group = "";// group;
             loginClient.Version = clientVersion;
+
+            NetStateChildShardAuthId.Add(authID, state);
 
             ConnectChildShardToParentShard(loginClient, ParentIp, ParentPort);
         }
@@ -79,29 +89,158 @@ namespace Server.Sharding
             loginClient.Send(SeedChildShard.ToArray(), SeedChildShard.Length, true, true);
         }
 
-        public static void ReceiveAccountInfo(string account, string password)
+        static void ReceiveAccountInfo(object sender, ReceiveAccountInfoArgs e)
         {
-            logger.Information("ChildShard: ReceiveAccountInfo account: {0} password: {1}", account, password);
-            /*
-            if (!(Accounts.GetAccount(account) is Account acct))
-            {
-                // To prevent someone from making an account of just '' or a bunch of meaningless spaces
-                if (AutoAccountCreation && un.Trim().Length > 0)
-                {
-                    e.State.Account = acct = CreateAccount(e.State, un, pw);
-                    e.Accepted = acct?.CheckAccess(e.State) ?? false;
+            string account = e.Account;
+            string password = e.Password;
+            NetClient netClient = e.NetClient;
 
-                    if (!e.Accepted)
-                    {
-                        e.RejectReason = ALRReason.BadComm;
-                    }
+            logger.Information("ChildShard: ReceiveAccountInfo account: {0} password: {1}", account, password);
+
+            NetState childShardNetState;
+
+            int authIdFromRequest = int.Parse(password);
+
+            if (NetStateChildShardAuthId.TryGetValue(authIdFromRequest, out childShardNetState))
+            {
+                var accountLoginEventArgs = new AccountLoginEventArgs(childShardNetState, account, password);
+
+                EventSink.InvokeAccountLogin(accountLoginEventArgs);
+
+                if (accountLoginEventArgs.Accepted)
+                {
+                    logger.Information("ChildShard: Successfull account creation: {0} password: {1}", account, password);
+
+                    netClient.ClientNetState = childShardNetState;
+
+                    CreateCharacter(childShardNetState);
                 }
                 else
                 {
-                    logger.Information("Login: {0}: Invalid username '{1}'", e.State, un);
-                    e.RejectReason = ALRReason.Invalid;
+                    logger.Information("ChildShard: Failed account creation: {0} password: {1}", account, password);
                 }
-            }*/
+            }
+            else
+            {
+                logger.Information("ChildShard: Could not find valid NetState for authId {0}", authIdFromRequest);
+            }
+        }
+
+        public static void CreateCharacter(NetState netState)
+        {
+            //otherwise create a new character
+            string characterName = "George";
+            bool female = false;
+            byte characterStrength = 20;
+            byte characterIntelligence = 20;
+            byte characterDexterity = 20;
+            SkillNameValue[]  skills = new[]
+            {
+                new SkillNameValue((SkillName)0, 0),
+                new SkillNameValue((SkillName)25, 30),
+                new SkillNameValue((SkillName)46, 30),
+                new SkillNameValue((SkillName)43, 30)
+            };
+
+            Server.Race characterRace = Server.Race.Human;
+            ushort characterHue = 0;
+            ushort characterHairHue = 0;
+            ushort characterHairGraphic = 0;
+            ushort characterBeardHue = 0;
+            ushort characterBeardGraphic = 0;
+            ushort characterShirtHue = 0;
+            ushort characterPantsHue = 0;
+            CityInfo cityInfo = new CityInfo("Britain", "Sweet Dreams Inn", 1496, 1628, 10);
+            uint clientIP = NetClient.ClientAddress;
+            byte profession = 0;
+
+            var args = new CharacterCreatedEventArgs(
+                netState,
+                netState.Account,
+                characterName,
+                female,
+                characterHue,
+                characterStrength,
+                characterDexterity,
+                characterIntelligence,
+                cityInfo,
+                skills,
+                characterShirtHue,
+                characterPantsHue,
+                characterHairGraphic,
+                characterHairHue,
+                characterBeardGraphic,
+                characterBeardHue,
+                profession,
+                characterRace
+            );
+
+            netState.SendClientVersionRequest();
+
+            EventSink.InvokeCharacterCreated(args);
+
+            var m = args.Mobile;
+
+            if (m != null)
+            {
+                netState.Mobile = m;
+                m.NetState = netState;
+            }
+            else
+            {
+                netState.BlockAllPackets = false;
+                netState.Disconnect("Character creation blocked.");
+            }
+
+            logger.Information("ChildShard: Invoking character creation {0}", characterName);
+        }
+
+        public static void DoLogin(this NetState state, Mobile m)
+        {
+            state._protocolState = NetState.ProtocolState.GameServer_LoggedIn;
+
+            state.SendLoginConfirmation(m);
+
+            state.SendMapChange(m.Map);
+
+            state.SendMapPatches();
+
+            state.SendSeasonChange((byte)m.GetSeason(), true);
+
+            state.SendSupportedFeature();
+
+            state.Sequence = 0;
+
+            state.SendMobileUpdate(m);
+            state.SendMobileUpdate(m);
+
+            m.CheckLightLevels(true);
+
+            state.SendMobileUpdate(m);
+
+            state.SendMobileIncoming(m, m);
+
+            state.SendMobileStatus(m);
+            state.SendSetWarMode(m.Warmode);
+
+            m.SendEverything();
+
+            state.SendSupportedFeature();
+            state.SendMobileUpdate(m);
+
+            state.SendMobileStatus(m);
+            state.SendSetWarMode(m.Warmode);
+            state.SendMobileIncoming(m, m);
+
+            state.SendLoginComplete();
+            state.SendCurrentTime();
+            state.SendSeasonChange((byte)m.GetSeason(), true);
+            state.SendMapChange(m.Map);
+
+            EventSink.InvokeLogin(m);
+
+            state.CompressionEnabled = true;
+            state.PacketEncoder ??= NetworkCompression.Compress;
         }
 
         public static void Tick()
@@ -120,6 +259,15 @@ namespace Server.Sharding
                 else if (nc.IsConnected)
                 {
                     nc.Update();
+
+                    if (nc.DoCharacterLogin == false)
+                    {
+                        if(nc.ClientNetState != null && nc.ClientNetState.Mobile != null)
+                        {
+                            nc.DoCharacterLogin = true;
+                            DoLogin(nc.ClientNetState, nc.ClientNetState.Mobile);
+                        }
+                    }
                 }
                 else
                 {

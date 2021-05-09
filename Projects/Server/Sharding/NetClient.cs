@@ -69,6 +69,9 @@ namespace LoadTestUO
         public bool CanRequestWalk = true;
         public uint UniqueId;
 
+        public Server.Network.NetState ClientNetState;
+        public bool DoCharacterLogin = false;
+
         private const int BUFF_SIZE = 0x80000;
 
         private int _incompletePacketLength;

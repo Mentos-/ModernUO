@@ -2284,7 +2284,14 @@ namespace Server.Mobiles
 
             DuelContext?.OnLocationChanged(this);
 
-            Server.Sharding.ParentShard.OnPlayerMobileLocationChange(this, oldLocation);
+            if (Core.IsChildShard)
+            {
+                Server.Sharding.ChildShard.OnPlayerMobileLocationChange(this, oldLocation);
+            }
+            else
+            {
+                Server.Sharding.ParentShard.OnPlayerMobileLocationChange(this, oldLocation);
+            }
 
             var context = DesignContext;
 
