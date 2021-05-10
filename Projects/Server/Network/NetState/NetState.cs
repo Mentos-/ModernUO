@@ -473,6 +473,163 @@ namespace Server.Network
             return !(result.IsClosed || result.Length <= 0);
         }
 
+        private static Dictionary<byte, string> PacketDescription = new Dictionary<byte, string>();
+
+        private static void LoadPacketDescriptions()
+        {
+            PacketDescription.Add(0x00, "Create Character");
+            PacketDescription.Add(0x01, "Disconnect Notification");
+            PacketDescription.Add(0x02, "Move Request");
+            PacketDescription.Add(0x03, "Talk Request");
+            PacketDescription.Add(0x04, "Request God Mode (God Client)");
+            PacketDescription.Add(0x05, "Request Attack");
+            PacketDescription.Add(0x06, "Double Click");
+            PacketDescription.Add(0x07, "Pick Up Item");
+            PacketDescription.Add(0x08, "Drop Item");
+            PacketDescription.Add(0x09, "Single Click");
+            PacketDescription.Add(0x0A, "Edit (God Client)");
+            PacketDescription.Add(0x12, "Request Skill etc use");
+            PacketDescription.Add(0x13, "Drop->Wear Item");
+            PacketDescription.Add(0x14, "Send Elevation (God Client)");
+            PacketDescription.Add(0x16, "Request Script Names");
+            PacketDescription.Add(0x17, "SendMobileHealthBar");
+            PacketDescription.Add(0x34, "Get Player Status");
+            PacketDescription.Add(0x35, "Add Resource (God Client)");
+            PacketDescription.Add(0x37, "Move Item (God Client)");
+            PacketDescription.Add(0x38, "Drunken Coder");
+            PacketDescription.Add(0x3B, "Buy Item(s)");
+            PacketDescription.Add(0x5D, "Login Character");
+            PacketDescription.Add(0x69, "Change Text/Emote Colors");
+            PacketDescription.Add(0x72, "SendSetWarMode");
+            PacketDescription.Add(0x75, "Rename Character");
+            PacketDescription.Add(0x7D, "Response To Dialog Box");
+            PacketDescription.Add(0x80, "Login Request");
+            PacketDescription.Add(0x83, "Delete Character");
+            PacketDescription.Add(0x91, "Game Server Login");
+            PacketDescription.Add(0x9B, "Request Help");
+            PacketDescription.Add(0x9F, "Sell List Reply");
+            PacketDescription.Add(0xA0, "Select Server");
+            PacketDescription.Add(0xA4, "Client Spy");
+            PacketDescription.Add(0xA7, "Request Tip/Notice Window");
+            PacketDescription.Add(0xAC, "Gump Text Entry Dialog Reply");
+            PacketDescription.Add(0xAD, "Unicode/Ascii speech request");
+            PacketDescription.Add(0xB1, "Gump Menu Selection");
+            PacketDescription.Add(0xB3, "Chat Text");
+            PacketDescription.Add(0xB5, "Open Chat Window");
+            PacketDescription.Add(0xB6, "Send Help/Tip Request");
+            PacketDescription.Add(0xD9, "Spy On Client");
+            PacketDescription.Add(0x0B, "Damage");
+            PacketDescription.Add(0x11, "SendMobileStatus");
+            PacketDescription.Add(0x1A, "Object Info");
+            PacketDescription.Add(0x1B, "SendLoginConfirmation");
+            PacketDescription.Add(0x1C, "Send Speech");
+            PacketDescription.Add(0x1D, "Delete Object");
+            PacketDescription.Add(0x20, "SendMobileUpdate");
+            PacketDescription.Add(0x21, "Char Move Rejection");
+            PacketDescription.Add(0x23, "Dragging Of Item");
+            PacketDescription.Add(0x24, "Draw Container");
+            PacketDescription.Add(0x25, "Add Item To Container");
+            PacketDescription.Add(0x26, "Kick Player");
+            PacketDescription.Add(0x27, "Reject Move Item Request");
+            PacketDescription.Add(0x28, "Clear Square (God Client?)");
+            PacketDescription.Add(0x29, "Paperdoll Clothing Add Ack");
+            PacketDescription.Add(0x2B, "God Mode (God Client)");
+            PacketDescription.Add(0x2D, "Mob Attributes");
+            PacketDescription.Add(0x2E, "Worn Item");
+            PacketDescription.Add(0x2F, "Fight Occuring");
+            PacketDescription.Add(0x30, "Attack Ok");
+            PacketDescription.Add(0x32, "Unknown");
+            PacketDescription.Add(0x33, "Pause Client");
+            PacketDescription.Add(0x3C, "Items In Container");
+            PacketDescription.Add(0x3E, "Versions (God Client)");
+            PacketDescription.Add(0x3F, "Update Statics (God Client)");
+            PacketDescription.Add(0x4E, "Personal Light Level");
+            PacketDescription.Add(0x4F, "Overall Light Level");
+            PacketDescription.Add(0x53, "Idle Warning");
+            PacketDescription.Add(0x54, "Play Sound Effect");
+            PacketDescription.Add(0x55, "SendLoginComplete");
+            PacketDescription.Add(0x5B, "SendCurrentTime");
+            PacketDescription.Add(0x65, "Set Weather");
+            PacketDescription.Add(0x6D, "Play Midi Music");
+            PacketDescription.Add(0x6E, "Character Animation");
+            PacketDescription.Add(0x70, "Graphical Effect");
+            PacketDescription.Add(0x74, "Open Buy Window");
+            PacketDescription.Add(0x76, "New Subserver");
+            PacketDescription.Add(0x77, "Update Player");
+            PacketDescription.Add(0x78, "SendMobileIncoming");
+            PacketDescription.Add(0x7C, "Open Dialog Box");
+            PacketDescription.Add(0x82, "Login Denied");
+            PacketDescription.Add(0x86, "Resend Characters After Delete");
+            PacketDescription.Add(0x88, "Open Paperdoll");
+            PacketDescription.Add(0x89, "Corpse Clothing");
+            PacketDescription.Add(0x8C, "Connect To Game Server");
+            PacketDescription.Add(0x90, "Map Message");
+            PacketDescription.Add(0x97, "Move Player");
+            PacketDescription.Add(0x9E, "Sell List");
+            PacketDescription.Add(0xA1, "Update Current Health");
+            PacketDescription.Add(0xA2, "Update Current Mana");
+            PacketDescription.Add(0xA3, "Update Current Stamina");
+            PacketDescription.Add(0xA5, "Open Web Browser");
+            PacketDescription.Add(0xA6, "Tip/Notice Window");
+            PacketDescription.Add(0xA8, "Game Server List");
+            PacketDescription.Add(0xA9, "Characters / Starting Locations");
+            PacketDescription.Add(0xAA, "Allow/Refuse Attack");
+            PacketDescription.Add(0xAB, "Gump Text Entry Dialog");
+            PacketDescription.Add(0xAE, "Unicode Speech message");
+            PacketDescription.Add(0xAF, "Display Death Action");
+            PacketDescription.Add(0xB0, "Send Gump Menu Dialog");
+            PacketDescription.Add(0xB2, "Chat Message");
+            PacketDescription.Add(0xB7, "Help/Tip Data");
+            PacketDescription.Add(0xB9, "SendSupportedFeature");
+            PacketDescription.Add(0xBA, "Quest Arrow");
+            PacketDescription.Add(0xBC, "SendSeasonChange");
+            PacketDescription.Add(0xC0, "Graphical Effect");
+            PacketDescription.Add(0xC1, "Cliloc Message");
+            PacketDescription.Add(0xC4, "Semivisible (Smurf it!)");
+            PacketDescription.Add(0xC6, "Invalid Map Enable");
+            PacketDescription.Add(0xC7, "3D Particle Effect");
+            PacketDescription.Add(0xCB, "Global Que Count");
+            PacketDescription.Add(0xCC, "Cliloc Message Affix");
+            PacketDescription.Add(0xD2, "Extended PacketDescription.Add(0x20");
+            PacketDescription.Add(0xD3, "Extended PacketDescription.Add(0x78");
+            PacketDescription.Add(0xD6, "Mega Cliloc");
+            PacketDescription.Add(0xD8, "Send Custom House");
+            PacketDescription.Add(0xDB, "Character Transfer Log");
+            PacketDescription.Add(0xDC, "SE Introduced Revision");
+            PacketDescription.Add(0xDD, "Compressed Gump");
+            PacketDescription.Add(0xDF, "Buff/Debuff System");
+            PacketDescription.Add(0xF0, "Krrios client special");
+            PacketDescription.Add(0x0C, "Edit Tile Data (God Client)");
+            PacketDescription.Add(0x15, "Follow");
+            PacketDescription.Add(0x22, "Character Move ACK/ Resync Request");
+            PacketDescription.Add(0x2C, "Resurrection Menu");
+            PacketDescription.Add(0x39, "Remove (Unknown)");
+            PacketDescription.Add(0x3A, "Send Skills");
+            PacketDescription.Add(0x56, "Map Packet (cartography/treasure)");
+            PacketDescription.Add(0x66, "Books (Pages, Old Packet)");
+            PacketDescription.Add(0x6C, "Target Cursor Commands");
+            PacketDescription.Add(0x6F, "Secure Trading");
+            PacketDescription.Add(0x71, "Bulletin Board Messages");
+            PacketDescription.Add(0x73, "Ping");
+            PacketDescription.Add(0x93, "Books (Title Page, Old Packet)");
+            PacketDescription.Add(0x95, "Dye Window");
+            PacketDescription.Add(0x98, "All Names (3D Client Only)");
+            PacketDescription.Add(0x99, "Give Boat/House Placement View");
+            PacketDescription.Add(0xB8, "Request/Char Profile");
+            PacketDescription.Add(0xBB, "Ultima Messenger");
+            PacketDescription.Add(0xBD, "Client Version");
+            PacketDescription.Add(0xBE, "Assist Version");
+            PacketDescription.Add(0xBF, "SendMapChange or SendMapPatches or SendBondedStatus");
+            PacketDescription.Add(0xC2, "Unicode TextEntry");
+            PacketDescription.Add(0xC8, "Client View Range");
+            PacketDescription.Add(0xC9, "Get Area Server Ping");
+            PacketDescription.Add(0xCA, "Get User Server Ping");
+            PacketDescription.Add(0xD0, "Configuration File");
+            PacketDescription.Add(0xD1, "Logout Status");
+            PacketDescription.Add(0xD4, "*New* Book Header");
+            PacketDescription.Add(0xD7, "Generic AOS Commands");
+        }
+
         public void Send(ReadOnlySpan<byte> span)
         {
             if (span == null || Connection == null || BlockAllPackets)
@@ -495,6 +652,26 @@ namespace Server.Network
                     prof = PacketSendProfile.Acquire(span[0]);
                     prof.Start();
                 }
+                /*
+                byte packetId = span[0];
+                int packetLength = span.Length;
+
+                if (PacketDescription.Count <= 0)
+                {
+                    LoadPacketDescriptions();
+                }
+
+                string packetDescription = PacketDescription.ContainsKey(packetId) ? PacketDescription[packetId] : "no description found";
+                string direction = (false ? "Client" : "Server");
+
+                string time = DateTime.Now.ToString("h:mm:ss");
+                if (packetDescription != "Ping")
+                {
+                    Console.WriteLine("{0} {1} {2}:  {3} ({4})", time, direction, packetId, packetDescription, _packetEncoder != null ? "Compressed" : "Normal");
+                }
+
+                LoadTestUO.NetClient.LogPacketBuffer(span, length, false);
+                */
 
                 if (_packetEncoder != null)
                 {
