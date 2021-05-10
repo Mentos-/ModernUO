@@ -40,11 +40,24 @@ namespace Server.Sharding
         public static void HandleLoginServerAuth(NetState state, CircularBufferReader reader, ref int packetLength)
         {
             int authID = reader.ReadInt32();
-            //this is the unused ClientVersion of the client trying to switch between Parent and Child shards
-            //at this time we are only communicating with ChildShard's packet handler so we do not need it
-            //state.Version = new ClientVersion(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+            state._seed = authID;
+            state.Seeded = true;
 
-            logger.Information("ChildShard: Received login request pinging parent server with authID {0}", authID);
+            if (state._seed == 0)
+            {
+                state.LogInfo("Invalid client detected, disconnecting");
+                state.Disconnect("Invalid seed sent.");
+                return;
+            }
+
+            var clientMaj = reader.ReadInt32();
+            var clientMin = reader.ReadInt32();
+            var clientRev = reader.ReadInt32();
+            var clientPat = reader.ReadInt32();
+
+            state.Version = new ClientVersion(clientMaj, clientMin, clientRev, clientPat);
+
+            logger.Information("ChildShard: Received login request with authID {0} ClientVersion {1}.{2}.{3}.{4}", authID, clientMaj, clientMin, clientRev, clientPat);
 
             //this is the ClientVersion of our PacketHandler that talks from ChildShard to ParentShard
             LoadTestUO.ClientVersion clientVersion = LoadTestUO.ClientVersion.CV_705301;
@@ -111,9 +124,25 @@ namespace Server.Sharding
                 {
                     logger.Information("ChildShard: Successfull account creation: {0} password: {1}", account, password);
 
+                    var serverListEventArgs = new ServerListEventArgs(childShardNetState, childShardNetState.Account);
+
+                    EventSink.InvokeServerList(serverListEventArgs);
+
+                    if (serverListEventArgs.Rejected)
+                    {
+                        childShardNetState.Account = null;
+                        childShardNetState.SendAccountLoginRejected(ALRReason.BadComm);
+                        childShardNetState.Disconnect($"Account login rejected due to {ALRReason.BadComm}");
+                    }
+                    else
+                    {
+                        childShardNetState.ServerInfo = serverListEventArgs.Servers.ToArray();
+                        childShardNetState.SendAccountLoginAck();
+                    }
+
                     netClient.ClientNetState = childShardNetState;
 
-                    CreateCharacter(childShardNetState);
+                    CreateCharacter(netClient);
                 }
                 else
                 {
@@ -126,7 +155,7 @@ namespace Server.Sharding
             }
         }
 
-        public static void CreateCharacter(NetState netState)
+        public static void CreateCharacter(NetClient netClient)
         {
             //otherwise create a new character
             string characterName = "George";
@@ -155,8 +184,8 @@ namespace Server.Sharding
             byte profession = 0;
 
             var args = new CharacterCreatedEventArgs(
-                netState,
-                netState.Account,
+                netClient.ClientNetState,
+                netClient.ClientNetState.Account,
                 characterName,
                 female,
                 characterHue,
@@ -175,7 +204,7 @@ namespace Server.Sharding
                 characterRace
             );
 
-            netState.SendClientVersionRequest();
+            netClient.ClientNetState.SendClientVersionRequest();
 
             EventSink.InvokeCharacterCreated(args);
 
@@ -183,13 +212,15 @@ namespace Server.Sharding
 
             if (m != null)
             {
-                netState.Mobile = m;
-                m.NetState = netState;
+                netClient.ClientNetState.Mobile = m;
+                m.NetState = netClient.ClientNetState;
+
+                netClient.DoCharacterLogin = true;
             }
             else
             {
-                netState.BlockAllPackets = false;
-                netState.Disconnect("Character creation blocked.");
+                netClient.ClientNetState.BlockAllPackets = false;
+                netClient.ClientNetState.Disconnect("Character creation blocked.");
             }
 
             logger.Information("ChildShard: Invoking character creation {0}", characterName);
@@ -239,8 +270,8 @@ namespace Server.Sharding
 
             EventSink.InvokeLogin(m);
 
-            state.CompressionEnabled = true;
-            state.PacketEncoder ??= NetworkCompression.Compress;
+/*            state.CompressionEnabled = true;
+            state.PacketEncoder ??= NetworkCompression.Compress;*/
         }
 
         public static void Tick()
@@ -260,11 +291,11 @@ namespace Server.Sharding
                 {
                     nc.Update();
 
-                    if (nc.DoCharacterLogin == false)
+                    if (nc.DoCharacterLogin)
                     {
                         if(nc.ClientNetState != null && nc.ClientNetState.Mobile != null)
                         {
-                            nc.DoCharacterLogin = true;
+                            nc.DoCharacterLogin = false;
                             DoLogin(nc.ClientNetState, nc.ClientNetState.Mobile);
                         }
                     }
