@@ -72,7 +72,7 @@ namespace LoadTestUO
     }
 
     [Flags]
-    internal enum ClientFlags : uint
+    public enum ClientFlags : uint
     {
         CF_T2A = 0x00,
         CF_RE = 0x01,

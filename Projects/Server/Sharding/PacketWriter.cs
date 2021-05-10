@@ -321,7 +321,7 @@ namespace LoadTestUO
     }
 
 
-    internal class PacketWriter : PacketBase
+    public class PacketWriter : PacketBase
     {
         private byte[] _data;
 

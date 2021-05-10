@@ -1,6 +1,6 @@
-﻿namespace LoadTestUO
+namespace LoadTestUO
 {
-    internal enum ClientVersion
+    public enum ClientVersion
     {
         CV_OLD = (1 << 24) | (0 << 16) | (0 << 8) | 0,             // Original game
         CV_200 = (2 << 24) | (0 << 16) | (0 << 8) | 0,             // T2A Introduction. Adds screen dimensions packet

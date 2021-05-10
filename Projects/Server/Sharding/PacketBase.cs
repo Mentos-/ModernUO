@@ -33,7 +33,7 @@ using System.Text;
 
 namespace LoadTestUO
 {
-    internal abstract class PacketBase
+    public abstract class PacketBase
     {
         public abstract byte this[int index] { get; set; }
 
