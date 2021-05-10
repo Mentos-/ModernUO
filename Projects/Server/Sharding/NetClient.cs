@@ -45,14 +45,14 @@ using System.Net.Sockets;
 
 namespace LoadTestUO
 {
-    enum ClientSocketStatus
+    public enum ClientSocketStatus
     {
         Disconnected,
         Connecting,
         Connected,
     }
 
-    internal sealed class NetClient
+    public class NetClient
     {
         //Load test additions
         public string Name;
@@ -653,7 +653,122 @@ namespace LoadTestUO
 
         //private static LogFile _logFile;
 
-        private static void LogPacket(byte[] buffer, int length, bool toServer)
+        public static void LogPacket(byte[] buffer, int length, bool toServer)
+        {
+            // if (_logFile == null)
+            //     _logFile = new LogFile(FileSystemHelper.CreateFolderIfNotExists(CUOEnviroment.ExecutablePath, "Logs", "Network"), "packets.log");
+
+            int pos = 0;
+
+            StringBuilder output = new StringBuilder();
+
+            output.AppendFormat("{0}   -   ID {1:X2}   Length: {2}\n", (toServer ? "Client -> Server" : "Server -> Client"), buffer[0], buffer.Length);
+
+            if (buffer[0] == 0x80 || buffer[0] == 0x91)
+            {
+                output.AppendLine("[ACCOUNT CREDENTIALS HIDDEN]");
+            }
+            else
+            {
+                output.AppendLine("        0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F");
+                output.AppendLine("       -- -- -- -- -- -- -- --  -- -- -- -- -- -- -- --");
+
+                int byteIndex = 0;
+
+                int whole = length >> 4;
+                int rem = length & 0xF;
+
+                for (int i = 0; i < whole; ++i, byteIndex += 16)
+                {
+                    StringBuilder bytes = new StringBuilder(49);
+                    StringBuilder chars = new StringBuilder(16);
+
+                    for (int j = 0; j < 16; ++j)
+                    {
+                        int c = buffer[pos++];
+
+                        bytes.Append(c.ToString("X2"));
+
+                        if (j != 7)
+                        {
+                            bytes.Append(' ');
+                        }
+                        else
+                        {
+                            bytes.Append("  ");
+                        }
+
+                        if (c >= 0x20 && c < 0x80)
+                        {
+                            chars.Append((char)c);
+                        }
+                        else
+                        {
+                            chars.Append('.');
+                        }
+                    }
+
+                    output.Append(byteIndex.ToString("X4"));
+                    output.Append("   ");
+                    output.Append(bytes);
+                    output.Append("  ");
+                    output.AppendLine(chars.ToString());
+                }
+
+                if (rem != 0)
+                {
+                    StringBuilder bytes = new StringBuilder(49);
+                    StringBuilder chars = new StringBuilder(rem);
+
+                    for (int j = 0; j < 16; ++j)
+                    {
+                        if (j < rem)
+                        {
+                            int c = buffer[pos++];
+
+                            bytes.Append(c.ToString("X2"));
+
+                            if (j != 7)
+                            {
+                                bytes.Append(' ');
+                            }
+                            else
+                            {
+                                bytes.Append("  ");
+                            }
+
+                            if (c >= 0x20 && c < 0x80)
+                            {
+                                chars.Append((char)c);
+                            }
+                            else
+                            {
+                                chars.Append('.');
+                            }
+                        }
+                        else
+                        {
+                            bytes.Append("   ");
+                        }
+                    }
+
+                    output.Append(byteIndex.ToString("X4"));
+                    output.Append("   ");
+                    output.Append(bytes);
+                    output.Append("  ");
+                    output.AppendLine(chars.ToString());
+                }
+            }
+
+
+            output.AppendLine();
+            output.AppendLine();
+
+            //_logFile.Write(output.ToString());
+            Console.WriteLine(output.ToString());
+        }
+
+        public static void LogPacketBuffer(ReadOnlySpan<byte> buffer, int length, bool toServer)
         {
            // if (_logFile == null)
            //     _logFile = new LogFile(FileSystemHelper.CreateFolderIfNotExists(CUOEnviroment.ExecutablePath, "Logs", "Network"), "packets.log");
