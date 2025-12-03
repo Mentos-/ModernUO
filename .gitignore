@@ -28,6 +28,7 @@
 /Distribution/nohup.out
 /Distribution/ref
 /Distribution/web
+Distribution.rar
 
 /Projects/*/obj
 /Projects/*/bin
@@ -44,3 +45,5 @@
 
 /packages/*
 /Distribution/Configuration/server-access.json
+
+Ultima Online Classic*
