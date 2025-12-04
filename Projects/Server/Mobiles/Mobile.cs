@@ -7469,7 +7469,6 @@ public partial class Mobile : IHued, IComparable<Mobile>, ISpawnable, IObjectPro
     private static Direction DirectionFromYaw(float yaw)
     {
         var normalized = PluribusNormalizeYaw(yaw);
-        logger.Debug($"Pluribus yaw {yaw:F2} normalized {normalized:F2}");
 
         if (normalized >= -22.5f && normalized < 22.5f)
         {
