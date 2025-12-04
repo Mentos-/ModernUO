@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  *************************************************************************/
 
+using System;//Pluribus
 using System.Buffers.Binary;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -138,6 +139,30 @@ public ref struct SpanReader
 
         Position += 4;
         return value;
+    }
+    //Pluribus
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float ReadSingle()
+    {
+        if (!BinaryPrimitives.TryReadInt32BigEndian(_buffer[Position..], out var value))
+        {
+            throw new EndOfStreamException("Cannot read past the end of the buffer.");
+        }
+
+        Position += 4;
+        return BitConverter.Int32BitsToSingle(value);
+    }
+    //Pluribus
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float ReadSingleLE()
+    {
+        if (!BinaryPrimitives.TryReadInt32LittleEndian(_buffer[Position..], out var value))
+        {
+            throw new EndOfStreamException("Cannot read past the end of the buffer.");
+        }
+
+        Position += 4;
+        return BitConverter.Int32BitsToSingle(value);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

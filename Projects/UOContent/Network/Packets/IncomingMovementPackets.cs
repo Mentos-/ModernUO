@@ -14,14 +14,17 @@
  *************************************************************************/
 
 using System.Buffers;
+//using Server.Logging;
 
 namespace Server.Network;
 
 public static class IncomingMovementPackets
 {
+    //private static readonly ILogger logger = LogFactory.GetLogger(typeof(IncomingMovementPackets));
     public static unsafe void Configure()
     {
         IncomingPackets.Register(0x02, 7, true, &MovementReq);
+        IncomingPackets.Register(0xF5, 25, true, &PluribusMovementReq);
         // Not used by OSI, and interferes with ClassicUO/Razor protocol extensions
         // IncomingPackets.Register(0xF0, 0, true, NewMovementReq);
         // IncomingPackets.Register(0xF1, 9, true, TimeSyncReq);
@@ -109,5 +112,29 @@ public static class IncomingMovementPackets
 
             state.Sequence = seq;
         }
+    }
+    //called by client's Send_PluribusMovementUpdate
+    public static void PluribusMovementReq(NetState state, SpanReader reader)
+    {
+        var from = state.Mobile;
+
+        if (from == null)
+        {
+            return;
+        }
+
+        var actorX = reader.ReadSingleLE();
+        var actorY = reader.ReadSingleLE();
+        var actorZ = reader.ReadSingleLE();
+        var actorYaw = reader.ReadSingleLE();
+        var controlPitch = reader.ReadSingleLE();
+        var controlYaw = reader.ReadSingleLE();
+        /*
+        logger.Debug(
+            $"PluribusMovementReq from {from}: actor=({actorX:F2}, {actorY:F2}, {actorZ:F2}) " +
+            $"yaw={actorYaw:F2} control=({controlPitch:F2}, {controlYaw:F2})"
+        );
+        */
+        from.ApplyPluribusMovementData(actorX, actorY, actorZ, actorYaw, controlPitch, controlYaw);
     }
 }

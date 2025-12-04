@@ -252,6 +252,7 @@ public partial class Mobile : IHued, IComparable<Mobile>, ISpawnable, IObjectPro
     private AccessLevel m_AccessLevel;
 
     private TimerExecutionToken _autoManifestTimerToken;
+    private const float PluribusUnitsPerTile = 100f;
 
     private Container m_Backpack;
 
@@ -2606,6 +2607,24 @@ public partial class Mobile : IHued, IComparable<Mobile>, ISpawnable, IObjectPro
         get => m_Location.m_Z;
         set => Location = new Point3D(m_Location.m_X, m_Location.m_Y, value);
     }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusActorX { get; private set; }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusActorY { get; private set; }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusActorZ { get; private set; }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusActorYaw { get; private set; }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusControlPitch { get; private set; }
+
+    [CommandProperty(AccessLevel.GameMaster)]
+    public float PluribusControlYaw { get; private set; }
 
     public virtual void ProcessDelta()
     {
@@ -7354,6 +7373,140 @@ public partial class Mobile : IHued, IComparable<Mobile>, ISpawnable, IObjectPro
         OnLocationChange(oldLocation);
 
         Region.OnLocationChanged(this, oldLocation);
+    }
+
+    public void ApplyPluribusMovementData(float actorX, float actorY, float actorZ, float actorYaw, float controlPitch, float controlYaw)
+    {
+        var previousLocation = m_Location;
+
+        PluribusActorX = actorX;
+        PluribusActorY = actorY;
+        PluribusActorZ = actorZ;
+        PluribusActorYaw = actorYaw;
+        PluribusControlPitch = controlPitch;
+        PluribusControlYaw = controlYaw;
+
+        var newLocation = new Point3D(
+            (int)Math.Round(actorX / PluribusUnitsPerTile, MidpointRounding.AwayFromZero),
+            (int)Math.Round(actorY / PluribusUnitsPerTile, MidpointRounding.AwayFromZero),
+            (int)Math.Round(actorZ / PluribusUnitsPerTile, MidpointRounding.AwayFromZero)
+        );
+
+        var moved = m_Location != newLocation;
+
+        if (moved)
+        {
+            SetLocation(newLocation, false);
+        }
+
+        Direction = DirectionFromYaw(actorYaw);
+
+        logger.Debug(
+            $"ApplyPluribusMovementData {this}: actor=({actorX:F2}, {actorY:F2}, {actorZ:F2}) yaw={actorYaw:F2} " +
+            $"control=({controlPitch:F2}, {controlYaw:F2}) oldTile={previousLocation} newTile={newLocation}"
+        );
+
+        if (moved)
+        {
+            PluribusSendTrustedMovementUpdate();
+        }
+    }
+    //Pluribus
+    private void PluribusSendTrustedMovementUpdate()
+    {
+        if (m_Map == null)
+        {
+            return;
+        }
+
+        const int cacheLength = OutgoingMobilePackets.MobileMovingPacketCacheByteLength;
+        Span<byte> mobileMovingCache = stackalloc byte[cacheLength].InitializePacket();
+
+        foreach (var state in m_Map.GetClientsInRange(m_Location))
+        {
+            var beholder = state.Mobile;
+
+            if (beholder == null || beholder == this)
+            {
+                continue;
+            }
+
+            if (!Utility.InUpdateRange(m_Location, beholder.m_Location) || !beholder.CanSee(this))
+            {
+                continue;
+            }
+
+            state.SendMobileMovingUsingCache(mobileMovingCache, beholder, this);
+        }
+
+        var ourState = m_NetState;
+        if (ourState != null)
+        {
+            ourState.Sequence = 0;
+            ourState.SendMobileMovingUsingCache(mobileMovingCache, this, this);
+        }
+    }
+    //Pluribus
+    private static float PluribusNormalizeYaw(float yaw)
+    {
+        
+        yaw %= 360f;
+
+        if (yaw < -180f)
+        {
+            yaw += 360f;
+        }
+        else if (yaw > 180f)
+        {
+            yaw -= 360f;
+        }
+
+        yaw -= 90f;
+
+        return yaw;
+    }
+    //Pluribus End
+    private static Direction DirectionFromYaw(float yaw)
+    {
+        var normalized = PluribusNormalizeYaw(yaw);
+        logger.Debug($"Pluribus yaw {yaw:F2} normalized {normalized:F2}");
+
+        if (normalized >= -22.5f && normalized < 22.5f)
+        {
+            return Direction.South;
+        }
+
+        if (normalized >= 22.5f && normalized < 67.5f)
+        {
+            return Direction.Left;
+        }
+
+        if (normalized >= 67.5f && normalized < 112.5f)
+        {
+            return Direction.West;
+        }
+
+        if (normalized >= 112.5f && normalized < 157.5f)
+        {
+            return Direction.Up;
+        }
+
+        if (normalized >= 157.5f || normalized < -157.5f)
+        {
+            return Direction.North;
+        }
+
+        if (normalized >= -157.5f && normalized < -112.5f)
+        {
+            return Direction.Right;
+        }
+
+        if (normalized >= -112.5f && normalized < -67.5f)
+        {
+            return Direction.East;
+        }
+
+        return Direction.Down;
     }
 
     /// <summary>
