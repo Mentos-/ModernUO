@@ -591,7 +591,7 @@ public static class OutgoingMobilePackets
         writer.Write((byte)m.GetPacketFlags(ns.StygianAbyss));
         writer.Write((short)m.X);
         writer.Write((short)m.Y);
-        writer.Write((short)0);
+        writer.Write((short)ns.Sequence); // ServerID: low byte = sequence number, high byte = 0
         writer.Write((byte)m.Direction);
         writer.Write((sbyte)m.Z);
 
